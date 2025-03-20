@@ -21,65 +21,64 @@ export class PuppeteerService {
         const page = await browser.newPage();
         await page.goto(this.ssw_URL, { waitUntil: 'networkidle0' });
 
-        await page.click('[name="f1"]', { clickCount: 3 });
-        await page.keyboard.press('Backspace');
         await page.type('[name="f1"]', this.ssw_dominio);
-        await page.click('[name="f2"]', { clickCount: 3 });
-        await page.keyboard.press('Backspace');
         await page.type('[name="f2"]', this.ssw_cpf);
         await page.type('[name="f3"]', this.ssw_user);
         await page.type('[name="f4"]', this.ssw_password);
-
-        await page.click('#\\35'); // ID "5", precisa do escape para funcionar no Puppeteer
+        await page.click('#\\35');
         await page.waitForNavigation({ waitUntil: 'networkidle0' });
 
-        console.log('Login realizado com sucesso!');
+        console.log('Login concluído.');
 
-        await page.focus('#\\33'); // O ID "3" precisa de escape (\\33 é o código do número 3)
-        await page.keyboard.press('Backspace');
-        await page.type('#\\33', numberRelatorio);
+        await page.focus('#\\33');
+        await page.keyboard.type(numberRelatorio);
 
-        await page.waitForNavigation({ waitUntil: 'networkidle0' });
+        const [popupPage] = await Promise.all([
+            new Promise<puppeteer.Page>((resolve) => {
+                // O "targetcreated" dispara sempre que abre uma nova aba/janela
+                browser.once('targetcreated', async (target) => {
+                    const newPage = await target.page();
+                    resolve(newPage);
+                });
+            }),
+            // Dispara Enter que supostamente abre a nova janela
+            page.keyboard.press('Enter'),
+        ]);
 
-        // Preencher a data inicial de pagamento
-        await page.click('[name="data_ini_pagamento_parcela"]'); // Garante que o campo está ativo
-        await page.keyboard.down('Control');
-        await page.keyboard.press('A'); // Seleciona todo o texto
-        await page.keyboard.up('Control');
-        await page.keyboard.press('Backspace'); // Apaga o valor atual
-        await page.type('[name="data_ini_pagamento_parcela"]', dateRange.startDate);
+        console.log('Nova janela (popup) detectada.');
 
-        // Preencher a data final de pagamento
-        await page.click('[name="data_fin_pagamento_parcela"]');
-        await page.keyboard.down('Control');
-        await page.keyboard.press('A');
-        await page.keyboard.up('Control');
-        await page.keyboard.press('Backspace');
-        await page.type('[name="data_fin_pagamento_parcela"]', dateRange.endDate);
+        // 3) Podemos aguardar a navegação completa dentro do popup
+        await popupPage.bringToFront();
+        await popupPage.waitForNavigation({ waitUntil: 'networkidle0' });
 
-        // Preencher o campo "sit_desp"
-        await page.click('#sit_desp');
-        await page.keyboard.down('Control');
-        await page.keyboard.press('A');
-        await page.keyboard.up('Control');
-        await page.keyboard.press('Backspace');
-        await page.type('#sit_desp', 'T'); // 'T' - Todas menos canceladas
+        console.log('Popup carregado. Agora estamos na tela "477 - Consulta de Despesas".');
+        // 4) Preencher campos nesse popup
+        // IDs e names podem mudar, então ajuste:
+        console.log(dateRange)
+        await popupPage.type('[name="data_ini_pagamento_parcela"]', dateRange.startDate);
+        await popupPage.type('[name="data_fin_pagamento_parcela"]', dateRange.endDate);
 
-        // Disparar evento 'change' para garantir que a alteração seja processada
-        await page.evaluate(() => {
-            const element = document.querySelector('#sit_desp') as HTMLInputElement;
-            element.dispatchEvent(new Event('change', { bubbles: true }));
-        });
+        await popupPage.click('#sit_desp');
+        await popupPage.keyboard.down('Control');
+        await popupPage.keyboard.press('A');
+        await popupPage.keyboard.up('Control');
+        await popupPage.keyboard.press('Backspace');
+        await popupPage.type('#sit_desp', 'T'); // 'T' - Todas menos canceladas
 
-        // Clicar no botão de exportação para Excel
-        await page.click('#link_excel');
+        await popupPage.click('#link_excel');
 
-        // Aguardar um tempo extra para garantir que o arquivo seja gerado
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        const frames = popupPage.frames();
+        for (const f of frames) {
+            console.log('Frame URL:', f.url());
+        }
 
+        const ssw1440Frame = popupPage.frames().find(f => f.url().includes('ssw009'));
+        if (ssw1440Frame) {
+            await ssw1440Frame.waitForSelector('[id="-1"]');
+            await ssw1440Frame.click('[id="-1"]');
+        }
 
-        // Fechar o navegador (remova esta linha se precisar continuar)
-        // await browser.close();
+        await browser.close();
     }
 
     getDateRange(referenceDate?: string): { baseDate: string, startDate: string, endDate: string } {
