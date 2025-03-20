@@ -1,17 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import * as puppeteer from 'puppeteer';
 
 @Injectable()
-export class PuppeteerService {
+export class PuppeteerService implements OnModuleInit {
     ssw_dominio = 'THX';
     ssw_cpf = process.env.SSW_CPF;
     ssw_user = process.env.SSW_USER;
     ssw_password = process.env.SSW_PASSWORD;
     ssw_URL = 'https://sistema.ssw.inf.br/bin/ssw0422'
 
-    constructor() {
+    onModuleInit() {
         this.exemploNavegacao('477');
-        // console.log(this.getDateRange());
     }
 
     async exemploNavegacao(numberRelatorio: string) {
@@ -28,8 +27,6 @@ export class PuppeteerService {
         await page.click('#\\35');
         await page.waitForNavigation({ waitUntil: 'networkidle0' });
 
-        console.log('Login concluído.');
-
         await page.focus('#\\33');
         await page.keyboard.type(numberRelatorio);
 
@@ -41,20 +38,12 @@ export class PuppeteerService {
                     resolve(newPage);
                 });
             }),
-            // Dispara Enter que supostamente abre a nova janela
             page.keyboard.press('Enter'),
         ]);
 
-        console.log('Nova janela (popup) detectada.');
-
-        // 3) Podemos aguardar a navegação completa dentro do popup
         await popupPage.bringToFront();
         await popupPage.waitForNavigation({ waitUntil: 'networkidle0' });
 
-        console.log('Popup carregado. Agora estamos na tela "477 - Consulta de Despesas".');
-        // 4) Preencher campos nesse popup
-        // IDs e names podem mudar, então ajuste:
-        console.log(dateRange)
         await popupPage.type('[name="data_ini_pagamento_parcela"]', dateRange.startDate);
         await popupPage.type('[name="data_fin_pagamento_parcela"]', dateRange.endDate);
 
@@ -67,15 +56,15 @@ export class PuppeteerService {
 
         await popupPage.click('#link_excel');
 
-        const frames = popupPage.frames();
-        for (const f of frames) {
-            console.log('Frame URL:', f.url());
-        }
+        let dateReportSolicitation: Date;
 
-        const ssw1440Frame = popupPage.frames().find(f => f.url().includes('ssw009'));
-        if (ssw1440Frame) {
-            await ssw1440Frame.waitForSelector('[id="-1"]');
-            await ssw1440Frame.click('[id="-1"]');
+        const ssw009Frame = popupPage.frames().find(f => f.url().includes('ssw009'));
+
+        if (ssw009Frame) {
+            await ssw009Frame.waitForSelector('[id="-1"]');
+            await ssw009Frame.click('[id="-1"]');
+
+            dateReportSolicitation = new Date();
         }
 
         await browser.close();
@@ -103,4 +92,13 @@ export class PuppeteerService {
             endDate: formatDateForSystem(endDate),
         };
     }
+
+    formatter = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
 }
