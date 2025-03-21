@@ -14,7 +14,7 @@ async function waitForDownload(downloadPath: string, timeoutMs = 60000): Promise
     return new Promise((resolve, reject) => {
         const intervalId = setInterval(() => {
             const files = fs.readdirSync(downloadPath);
-            // A lógica: se encontrar um arquivo sem a extensão .crdownload, significa que completou
+            // Se encontrar um arquivo sem a extensão .crdownload, significa que concluiu o download
             const downloadedFile = files.find(file => !file.endsWith('.crdownload'));
 
             if (downloadedFile) {
@@ -49,13 +49,19 @@ export class PuppeteerService implements OnModuleInit {
         // Calcula range de datas
         const dateRange = this.getDateRange();
 
-        // Cria (se não existir) a pasta de downloads
+        // 1) Cria (se não existir) a pasta de downloads
         const downloadPath = join(process.cwd(), 'downloads');
         if (!fs.existsSync(downloadPath)) {
             fs.mkdirSync(downloadPath);
         }
 
-        // Lança o browser. Se não baixar em modo visual, teste headless: true ou headless: 'new'
+        // 2) Limpa todos os arquivos que já estiverem na pasta
+        const existingFiles = fs.readdirSync(downloadPath);
+        for (const file of existingFiles) {
+            fs.unlinkSync(join(downloadPath, file));
+        }
+
+        // 3) Lança o browser. Se não baixar em modo visual, teste headless: true ou headless: 'new'
         const browser = await puppeteer.launch({ headless: false });
 
         // Abre a página inicial
@@ -164,6 +170,7 @@ export class PuppeteerService implements OnModuleInit {
             return;
         }
 
+        // Loop para atualizar e esperar o relatório ficar 'Concluído' e aparecer 'Baixar'
         for (let i = 0; i < 7; i++) {
             try {
                 await processingQueue.click('#\\32'); // Botão "Atualizar"
@@ -211,7 +218,7 @@ export class PuppeteerService implements OnModuleInit {
                     await lastTdLink.click();
                     console.log('Cliquei em Baixar, aguardando arquivo...');
 
-                    // Aqui usamos a função que aguarda um arquivo "completo" (sem .crdownload) na pasta
+                    // Aqui usamos a função que aguarda um arquivo completo (sem .crdownload) na pasta
                     try {
                         const downloadedFileName = await waitForDownload(downloadPath, 60000);
                         console.log('Arquivo baixado com sucesso:', downloadedFileName);
