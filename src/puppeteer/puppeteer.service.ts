@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as puppeteer from 'puppeteer';
 
 @Injectable()
@@ -14,6 +14,8 @@ export class PuppeteerService implements OnModuleInit {
     }
 
     async exemploNavegacao(numberRelatorio: string) {
+        const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
         const dateRange = this.getDateRange();
 
         const browser = await puppeteer.launch({ headless: false });
@@ -35,6 +37,7 @@ export class PuppeteerService implements OnModuleInit {
                 // O "targetcreated" dispara sempre que abre uma nova aba/janela
                 browser.once('targetcreated', async (target) => {
                     const newPage = await target.page();
+                    console.log(newPage)
                     resolve(newPage);
                 });
             }),
@@ -67,10 +70,107 @@ export class PuppeteerService implements OnModuleInit {
             dateReportSolicitation = new Date();
         }
 
+        const [processingQueue] = await Promise.all([
+            new Promise<puppeteer.Page>((resolve) => {
+                browser.once('targetcreated', async (target) => {
+                    const newPage = await target.page();
+                    console.log('Popup Fila Processamento Target criado:', newPage.url());
+                    resolve(newPage);
+                });
+            }),
+        ]);
+
+        await processingQueue.bringToFront();
+        await processingQueue.waitForNavigation({ waitUntil: 'networkidle0' });
+
+        await processingQueue.waitForSelector('tbody', { visible: true });
+
+        let report: string[] | null = null;
+        let reportSeq: string | null = null;
+
+        const rows = await processingQueue.$$('tbody tr');
+        for (const row of rows) {
+            const tds = await row.$$('td');
+            if (tds.length < 9) continue;
+
+            const texts = await Promise.all(
+                tds.map(td => td.evaluate(el => el.textContent.trim()))
+            );
+
+            if (
+                texts[1]?.includes(numberRelatorio) &&
+                texts[6] === 'Aguardando' &&
+                texts[8]?.includes('Excluir')
+            ) {
+                report = texts;
+                reportSeq = texts[0];
+                console.log('Relatório aguardando encontrado:', report);
+                break;
+            }
+        }
+
+        if (!report) {
+            console.warn('Não foi encontrado nenhum relatório com os critérios desejados.');
+            await browser.close();
+            return;
+        }
+
+        for (let i = 0; i < 7; i++) {
+            try {
+                await processingQueue.click('#\\32');
+                console.log(`Clique de atualização nº ${i + 1}`);
+            } catch (err) {
+                console.error('Erro ao clicar no botão atualizar #2:', err);
+            }
+
+            const newRows = await processingQueue.$$('tbody tr');
+            let foundRow = null;
+            let foundRowTexts: string[] = [];
+
+            for (const row of newRows) {
+                // const seqAttr = await row.evaluate(r => r.getAttribute('seq'));
+                // if (seqAttr === reportSeq) { foundRow = row; break; }
+
+                const tds = await row.$$('td');
+                if (tds.length < 9) continue;
+                const cell0Text = await tds[0].evaluate(el => el.textContent.trim());
+                if (cell0Text === reportSeq) {
+                    foundRow = row;
+                    foundRowTexts = await Promise.all(
+                        tds.map(td => td.evaluate(el => el.textContent.trim()))
+                    );
+                    break;
+                }
+            }
+
+            if (!foundRow) {
+                console.log(`Não achei mais a row com seq=${reportSeq}. Talvez tenha sido removida...`);
+                await delay(10000);
+                continue;
+            }
+
+            if (foundRowTexts[6] === 'Concluído' && foundRowTexts[8]?.includes('Baixar')) {
+                console.log('Relatório pronto para baixar!');
+
+                const tds = await foundRow.$$('td');
+                const lastTdLink = await tds[8].$('a.sra');
+                if (lastTdLink) {
+                    await lastTdLink.click();
+                    console.log('Cliquei em Baixar.');
+                }
+
+                break;
+            } else {
+                console.log('Ainda não está pronto. Esperando 10s e tentando de novo...');
+                await delay(10000);
+            }
+        }
+
+        console.log('Encerrando browser...');
         await browser.close();
     }
 
-    getDateRange(referenceDate?: string): { baseDate: string, startDate: string, endDate: string } {
+    private getDateRange(referenceDate?: string): { baseDate: string, startDate: string, endDate: string } {
         const baseDate = referenceDate ? new Date(referenceDate) : new Date();
 
         const startDate = new Date(baseDate);
@@ -92,13 +192,4 @@ export class PuppeteerService implements OnModuleInit {
             endDate: formatDateForSystem(endDate),
         };
     }
-
-    formatter = new Intl.DateTimeFormat('pt-BR', {
-        timeZone: 'America/Sao_Paulo',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
 }
