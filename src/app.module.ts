@@ -1,13 +1,15 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { PuppeteerModule } from './puppeteer/puppeteer.module';
 import { ConfigModule } from '@nestjs/config';
+import { ReportSswModule } from './puppeteer/report-ssw.module';
+import { ExtractionDataCsvModule } from './extraction-data-csv/extraction-data-csv.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
-    PuppeteerModule
+    ReportSswModule,
+    ExtractionDataCsvModule
   ],
   controllers: [AppController],
   providers: [AppService],

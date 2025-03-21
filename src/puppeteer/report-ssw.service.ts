@@ -3,36 +3,8 @@ import * as puppeteer from 'puppeteer';
 import * as fs from 'fs';
 import { join } from 'path';
 
-/**
- * Aguarda até que apareça algum arquivo "completo" na pasta de downloads
- * (ignora arquivos que terminam com .crdownload).
- * Retorna o nome do primeiro arquivo encontrado, ou lança erro se passar do timeout.
- */
-async function waitForDownload(downloadPath: string, timeoutMs = 60000): Promise<string> {
-    const start = Date.now();
-
-    return new Promise((resolve, reject) => {
-        const intervalId = setInterval(() => {
-            const files = fs.readdirSync(downloadPath);
-            // Se encontrar um arquivo sem a extensão .crdownload, significa que concluiu o download
-            const downloadedFile = files.find(file => !file.endsWith('.crdownload'));
-
-            if (downloadedFile) {
-                clearInterval(intervalId);
-                resolve(downloadedFile);
-            }
-
-            if (Date.now() - start > timeoutMs) {
-                clearInterval(intervalId);
-                reject(new Error(`Tempo limite de ${timeoutMs}ms esgotado aguardando download terminar.`));
-            }
-        }, 1000);
-    });
-}
-
 @Injectable()
-export class PuppeteerService implements OnModuleInit {
-    // Ajuste conforme suas credenciais e URL
+export class ReportSswService implements OnModuleInit {
     private readonly ssw_dominio = 'THX';
     private readonly ssw_cpf = process.env.SSW_CPF;
     private readonly ssw_user = process.env.SSW_USER;
@@ -220,7 +192,7 @@ export class PuppeteerService implements OnModuleInit {
 
                     // Aqui usamos a função que aguarda um arquivo completo (sem .crdownload) na pasta
                     try {
-                        const downloadedFileName = await waitForDownload(downloadPath, 60000);
+                        const downloadedFileName = await this.waitForDownload(downloadPath, 60000);
                         console.log('Arquivo baixado com sucesso:', downloadedFileName);
                     } catch (err) {
                         console.error('Erro ou timeout aguardando o arquivo terminar de baixar:', err);
@@ -265,5 +237,26 @@ export class PuppeteerService implements OnModuleInit {
             startDate: formatDateForSystem(startDate),
             endDate: formatDateForSystem(endDate),
         };
+    }
+    async waitForDownload(downloadPath: string, timeoutMs = 60000): Promise<string> {
+        const start = Date.now();
+
+        return new Promise((resolve, reject) => {
+            const intervalId = setInterval(() => {
+                const files = fs.readdirSync(downloadPath);
+                // Se encontrar um arquivo sem a extensão .crdownload, significa que concluiu o download
+                const downloadedFile = files.find(file => !file.endsWith('.crdownload'));
+
+                if (downloadedFile) {
+                    clearInterval(intervalId);
+                    resolve(downloadedFile);
+                }
+
+                if (Date.now() - start > timeoutMs) {
+                    clearInterval(intervalId);
+                    reject(new Error(`Tempo limite de ${timeoutMs}ms esgotado aguardando download terminar.`));
+                }
+            }, 1000);
+        });
     }
 }
