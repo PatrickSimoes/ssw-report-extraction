@@ -7,22 +7,29 @@ export class CsvService {
   private readonly logger = new Logger(CsvService.name);
   private readonly downloadsFolder = './downloads';
 
+  /**
+   * Retorna o caminho do primeiro arquivo encontrado na pasta de downloads.
+   * Como sempre haverá apenas 1 arquivo, esse é o caminho retornado.
+   */
   async getFirstFilePath(): Promise<string> {
     const files = await fs.readdir(this.downloadsFolder);
-
-    if (files.length === 0) {
+    if (!files.length) {
       throw new Error('Nenhum arquivo encontrado na pasta de downloads.');
     }
-
     const filePath = join(this.downloadsFolder, files[0]);
     this.logger.log(`Arquivo encontrado: ${filePath}`);
     return filePath;
   }
 
-  // ✅ Novo método: retorna o conteúdo do CSV como string
-  async getCsvContent(): Promise<string> {
+  /**
+   * Lê o arquivo CSV como uma string.
+   * Ajuste a codificação se necessário (ex.: 'latin1' para arquivos em ISO-8859-1).
+   */
+  async readCsvFileAsString(): Promise<string> {
     const filePath = await this.getFirstFilePath();
-    const content = await fs.readFile(filePath, 'utf-8');
+    this.logger.log(`Lendo arquivo: ${filePath}`);
+    // Utilize a codificação que corresponda ao seu arquivo, aqui é 'utf8'
+    const content = await fs.readFile(filePath, { encoding: 'utf8' });
     return content;
   }
 }

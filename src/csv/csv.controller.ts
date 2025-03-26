@@ -1,21 +1,35 @@
-import { Controller, Get, Res } from '@nestjs/common';
+import { Body, Controller, HttpException, HttpStatus, Logger, Post } from '@nestjs/common';
 import { CsvService } from './csv.service';
-import { Response } from 'express';
+import { ReportSswService } from 'src/report-ssw/report-ssw.service';
 
 @Controller('csv')
 export class CsvController {
-  constructor(private readonly csvService: CsvService) { }
+  constructor(
+    private readonly csvService: CsvService,
+    private readonly reportSswService: ReportSswService,
+  ) { }
 
-  @Get('file')
-  async getCsv(@Res() res: Response) {
+  /**
+   */
+  @Post('data')
+  async getCsvData(
+    @Body() body: { cpf: string; user: string; password: string },
+  ) {
+    const { cpf, user, password } = body;
+
     try {
-      const csv = await this.csvService.getCsvContent();
+      Logger.log('Iniciado extração de dados do SSW');
+      const result = await this.reportSswService.sswNavegacao(cpf, user, password);
 
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename="arquivo.csv"');
-      res.send(csv);
+      Logger.log('Disponibilizandodo CSV data')
+      const csvContent = await this.csvService.readCsvFileAsString();
+
+      return { data: csvContent };
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      throw new HttpException(
+        error.message || 'Erro ao ler o arquivo CSV',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }
