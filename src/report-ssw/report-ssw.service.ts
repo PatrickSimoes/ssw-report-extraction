@@ -32,7 +32,7 @@ export class ReportSswService {
         }
 
         // 3) Lança o browser. Se não baixar em modo visual, teste headless: true ou headless: 'new'
-        const browser = await puppeteer.launch({ headless: true });
+        const browser = await puppeteer.launch({ headless: false });
 
         // Abre a página inicial
         const [page] = await browser.pages();
@@ -74,8 +74,8 @@ export class ReportSswService {
         await popupPage.waitForNavigation({ waitUntil: 'networkidle0' });
 
         // Preenche as datas
-        await popupPage.type('[name="data_ini_pagamento_parcela"]', dateRange.startDate);
-        await popupPage.type('[name="data_fin_pagamento_parcela"]', dateRange.endDate);
+        await popupPage.type('[name="data_ini_vencimento_parcela"]', dateRange.startDate);
+        await popupPage.type('[name="data_fin_vencimento_parcela"]', dateRange.endDate);
 
         // Situação das despesas
         await popupPage.click('#sit_desp');
@@ -84,7 +84,7 @@ export class ReportSswService {
         await popupPage.keyboard.up('Control');
         await popupPage.keyboard.press('Backspace');
         await popupPage.type('#sit_desp', 'T');
-
+        
         // Gera Excel
         await popupPage.click('#link_excel');
 

@@ -16,9 +16,9 @@ export class CsvController {
     @Body() body: { cpf: string; user: string; password: string },
   ) {
     const { cpf, user, password } = body;
-
     try {
       Logger.log('Iniciado extração de dados do SSW');
+      
       const result = await this.reportSswService.sswNavegacao(cpf, user, password);
 
       Logger.log('Disponibilizandodo CSV data')
