@@ -1,21 +1,19 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import * as puppeteer from 'puppeteer';
 import * as fs from 'fs';
 import { join } from 'path';
 
 @Injectable()
-export class ReportSswService implements OnModuleInit {
+export class ReportSswService {
     private readonly ssw_dominio = 'THX';
-    private readonly ssw_cpf = process.env.SSW_CPF;
-    private readonly ssw_user = process.env.SSW_USER;
-    private readonly ssw_password = process.env.SSW_PASSWORD;
     private readonly ssw_URL = 'https://sistema.ssw.inf.br/bin/ssw0422';
 
-    async onModuleInit() {
-        await this.exemploNavegacao('477');
-    }
+    async sswNavegacao(cpf: string, user: string, password: string) {
+        const ssw_cpf = cpf;
+        const ssw_user = user;
+        const ssw_password = password;
+        const numberRelatorio = '477';
 
-    async exemploNavegacao(numberRelatorio: string) {
         const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
         // Calcula range de datas
@@ -34,7 +32,7 @@ export class ReportSswService implements OnModuleInit {
         }
 
         // 3) Lança o browser. Se não baixar em modo visual, teste headless: true ou headless: 'new'
-        const browser = await puppeteer.launch({ headless: false });
+        const browser = await puppeteer.launch({ headless: true });
 
         // Abre a página inicial
         const [page] = await browser.pages();
@@ -51,9 +49,9 @@ export class ReportSswService implements OnModuleInit {
 
         // Login
         await page.type('[name="f1"]', this.ssw_dominio);
-        await page.type('[name="f2"]', this.ssw_cpf);
-        await page.type('[name="f3"]', this.ssw_user);
-        await page.type('[name="f4"]', this.ssw_password);
+        await page.type('[name="f2"]', ssw_cpf);
+        await page.type('[name="f3"]', ssw_user);
+        await page.type('[name="f4"]', ssw_password);
         await page.click('#\\35');
         await page.waitForNavigation({ waitUntil: 'networkidle0' });
 
@@ -238,6 +236,7 @@ export class ReportSswService implements OnModuleInit {
             endDate: formatDateForSystem(endDate),
         };
     }
+
     async waitForDownload(downloadPath: string, timeoutMs = 60000): Promise<string> {
         const start = Date.now();
 
