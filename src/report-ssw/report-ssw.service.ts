@@ -32,7 +32,10 @@ export class ReportSswService {
         }
 
         // 3) Lança o browser. Se não baixar em modo visual, teste headless: true ou headless: 'new'
-        const browser = await puppeteer.launch({ headless: true });
+        const browser = await puppeteer.launch({
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1280,720'],
+        });
 
         // Abre a página inicial
         const [page] = await browser.pages();
@@ -84,7 +87,7 @@ export class ReportSswService {
         await popupPage.keyboard.up('Control');
         await popupPage.keyboard.press('Backspace');
         await popupPage.type('#sit_desp', 'T');
-        
+
         // Gera Excel
         await popupPage.click('#link_excel');
 
