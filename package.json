@@ -12,7 +12,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "update:prod": "git pull && npm run build && npm run copy:json && pm2 restart 'ssw-report-extraction'",
+    "update:prod": "git pull && npm run build && pm2 restart 'ssw-report-extraction'",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
