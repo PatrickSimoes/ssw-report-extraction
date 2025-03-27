@@ -32,7 +32,7 @@ export class ReportSswService {
         }
 
         // 3) Lança o browser. Se não baixar em modo visual, teste headless: true ou headless: 'new'
-        const browser = await puppeteer.launch({ headless: false });
+        const browser = await puppeteer.launch({ headless: true });
 
         // Abre a página inicial
         const [page] = await browser.pages();
