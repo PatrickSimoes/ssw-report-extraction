@@ -21,8 +21,11 @@ export class CsvController {
       
       const result = await this.reportSswService.sswNavegacao(cpf, user, password);
 
-      Logger.log('Disponibilizandodo CSV data')
+      Logger.log('Disponibilizando CSV data')
+
       const csvContent = await this.csvService.readCsvFileAsString();
+
+      Logger.log('Extração de dados do SSW finalizada')
 
       return { data: csvContent };
     } catch (error) {
